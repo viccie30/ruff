@@ -3205,30 +3205,9 @@ impl<'db> TypeInferenceBuilder<'db> {
                     }
                 };
 
-                if let Symbol::Type(class_member, _) =
+                let Symbol::Type(class_member, _) =
                     class.class_member(self.db, unary_dunder_method)
-                {
-                    let call = class_member.call(self.db, &[operand_type]);
-
-                    match call.return_ty_result(
-                        self.db,
-                        AnyNodeRef::ExprUnaryOp(unary),
-                        &mut self.diagnostics,
-                    ) {
-                        Ok(t) => t,
-                        Err(e) => {
-                            self.diagnostics.add_lint(
-                                &UNSUPPORTED_OPERATOR,
-                                unary.into(),
-                                format_args!(
-                                    "Unary operator `{op}` is unsupported for type `{}`",
-                                    operand_type.display(self.db),
-                                ),
-                            );
-                            e.return_ty()
-                        }
-                    }
-                } else {
+                else {
                     self.diagnostics.add_lint(
                         &UNSUPPORTED_OPERATOR,
                         unary.into(),
@@ -3237,10 +3216,30 @@ impl<'db> TypeInferenceBuilder<'db> {
                             operand_type.display(self.db),
                         ),
                     );
+                    return Type::Unknown;
+                };
 
-                    Type::Unknown
+                let call = class_member.call(self.db, &[operand_type]);
+                match call.return_ty_result(
+                    self.db,
+                    AnyNodeRef::ExprUnaryOp(unary),
+                    &mut self.diagnostics,
+                ) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        self.diagnostics.add_lint(
+                            &UNSUPPORTED_OPERATOR,
+                            unary.into(),
+                            format_args!(
+                                "Unary operator `{op}` is unsupported for type `{}`",
+                                operand_type.display(self.db),
+                            ),
+                        );
+                        e.return_ty()
+                    }
                 }
             }
+
             _ => todo_type!(), // TODO other unary op types
         }
     }
